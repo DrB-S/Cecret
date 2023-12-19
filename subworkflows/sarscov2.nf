@@ -1,9 +1,12 @@
-include { freyja; freyja_aggregate }     from '../modules/freyja'    addParams(params)
-include { pangolin }                     from '../modules/pangolin'  addParams(params)
-include { nextclade }                    from '../modules/nextclade' addParams(params)
-include { nextclade_dataset as dataset } from '../modules/nextclade' addParams(params)
-include { unzip }                        from '../modules/cecret'    addParams(params)
-include { vadr }                         from '../modules/vadr'      addParams(params)
+include { freyja_aggregate }             from '../modules/freyja'        addParams(params)
+include { freyja_demix }                 from '../modules/freyja'        addParams(params)
+include { freyja_variants }              from '../modules/freyja'        addParams(params)
+include { pangolin }                     from '../modules/pangolin'      addParams(params)
+include { pango_collapse }               from '../modules/pangocollapse' addParams(params)
+include { nextclade }                    from '../modules/nextclade'     addParams(params)
+include { nextclade_dataset as dataset } from '../modules/nextclade'     addParams(params)
+include { unzip }                        from '../modules/cecret'        addParams(params)
+include { vadr }                         from '../modules/vadr'          addParams(params)
 
 workflow sarscov2 {
     take:
@@ -16,6 +19,7 @@ workflow sarscov2 {
     main:
         vadr(ch_fastas.collect())
         pangolin(ch_fastas.collect())
+        pango_collapse(pangolin.out.pangolin_file)
         
         if ( params.download_nextclade_dataset ) {
             dataset()
@@ -26,11 +30,12 @@ workflow sarscov2 {
         }
         
         nextclade(ch_fastas.collect(), ch_dataset)
-        freyja(ch_bam.map{it -> tuple(it[0], it[1])}.combine(ch_reference_genome))
-        freyja_aggregate(freyja.out.freyja_demix.collect(), ch_freyja_script)
+        freyja_variants(ch_bam.map{it -> tuple(it[0], it[1])}.combine(ch_reference_genome))
+        freyja_demix(freyja_variants.out.variants)
+        freyja_aggregate(freyja_demix.out.demix.collect(), ch_freyja_script)
 
     emit:
         dataset     = ch_dataset
         for_multiqc = pangolin.out.pangolin_file.mix(nextclade.out.nextclade_file).mix(freyja_aggregate.out.for_multiqc)
-        for_summary = freyja_aggregate.out.aggregated_freyja_file.mix(vadr.out.vadr_file)
+        for_summary = freyja_aggregate.out.aggregated_freyja_file.mix(vadr.out.vadr_file).mix(pango_collapse.out.results)
 }

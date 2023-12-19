@@ -1,8 +1,8 @@
 process pangolin {
   tag        "SARS-CoV-2 lineage Determination"
-  label      "medcpus"
+  label      "process_medium"
   publishDir "${params.outdir}", mode: 'copy'
-  container  'staphb/pangolin:4.3-pdata-1.21'
+  container  'staphb/pangolin:4.3.1-pdata-1.23.1-1'
 
   //#UPHLICA maxForks      10
   //#UPHLICA errorStrategy { task.attempt < 2 ? 'retry' : 'ignore'}
@@ -38,8 +38,10 @@ process pangolin {
     pangolin !{params.pangolin_options} \
       --threads !{task.cpus} \
       --outdir pangolin \
+      --verbose \
       ultimate_fasta.fasta \
       | tee -a $log
+
     cp ultimate_fasta.fasta pangolin/combined.fasta
   '''
 }

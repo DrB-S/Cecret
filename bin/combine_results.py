@@ -11,6 +11,7 @@ aci_file                = 'amplicon_depth.csv'
 ampliconstats_file      = 'ampliconstats.summary'
 samtools_coverage_file  = 'samtools_coverage_summary.tsv'
 pangolin_file           = 'multiqc_data/multiqc_pangolin.txt'
+pango_collapse_file     = 'pango_collapse.csv'
 nextclade_file          = 'multiqc_data/multiqc_nextclade.txt'
 vadr_file               = 'vadr.csv'
 fastp_file              = 'multiqc_data/multiqc_general_stats.txt'
@@ -66,6 +67,8 @@ if not fasta_df.empty :
     summary_df['sample_id'] = summary_df['sample_id'].fillna(summary_df['fasta_sample'])
     summary_df              = summary_df.drop('fasta_sample', axis=1)
     columns                 = ['fasta_line'] + columns + ['num_N', 'num_total']
+
+summary_df['sample_id'] = summary_df['sample_id'].astype(object)
 
 if exists(fastp_file) :
     with open(fastp_file) as file:
@@ -277,7 +280,7 @@ if exists(samtools_coverage_file) :
 if exists(vadr_file) :
     print("Getting results from vadr file " + vadr_file)
     vadr_df = pd.read_csv(vadr_file, dtype = str, usecols = ['name', 'p/f', 'model', 'alerts'], index_col= False)
-    vadr_df=vadr_df.add_prefix('vadr_')
+    vadr_df = vadr_df.add_prefix('vadr_')
     vadr_columns = list(vadr_df.columns)
     vadr_columns.remove('vadr_name')
     vadr_columns.remove('vadr_p/f')
@@ -325,7 +328,7 @@ if exists(pangolin_file) :
     print("Getting results from pangolin file " + pangolin_file)
 
     pangolin_df = pd.read_table(pangolin_file, dtype = str)
-    pangolin_df=pangolin_df.add_prefix('pangolin_')
+    pangolin_df = pangolin_df.add_prefix('pangolin_')
     pangolin_columns = list(pangolin_df.columns)
     pangolin_df['sample_match'] = pangolin_df['pangolin_Sample'].str.replace('Consensus_', '', regex= False)
     pangolin_columns.remove('pangolin_Sample')
@@ -336,6 +339,16 @@ if exists(pangolin_file) :
     summary_df.drop('pangolin_Sample', axis=1, inplace=True)
     summary_df.drop('sample_match', axis=1, inplace=True)
     columns = ['pangolin_lineage'] + columns + pangolin_columns
+
+if exists(pango_collapse_file) :
+    print("Getting results from pango collapse file " + pango_collapse_file)
+
+    pangocollapse_df = pd.read_csv(pango_collapse_file, dtype = str, usecols=['lineage','Lineage_full', 'Lineage_expanded', 'Lineage_family'])
+    pangocollapse_df = pangocollapse_df.add_prefix('pangocollapse_')
+    pangocollapse_columns = list(pangocollapse_df.columns)
+
+    summary_df = pd.merge(summary_df, pangocollapse_df, left_on = 'pangolin_lineage', right_on = 'pangocollapse_lineage', how = 'left')
+    columns = columns + pangocollapse_columns
 
 if exists(freyja_file) :
     print("Getting results from freyja file " + freyja_file)
@@ -359,7 +372,8 @@ if exists(versions_file) :
         summary_df[version] = software_version
     columns = columns + version_columns
 
-summary_df['sample'] = summary_df['sample_id'].str.split("_").str[0]
+summary_df['sample']    = summary_df['sample_id'].str.split("_").str[0]
+summary_df['sample_id'] = summary_df['sample_id'].astype('string')
 summary_df = summary_df.replace([" ", ",", "\t", "\n"], [" ", " ", " ", " "], regex=True)
 summary_df = summary_df.sort_values(by=['sample_id'], ascending=True)
 summary_df = summary_df.replace([" ", ",", "\t", "\n"], [" ", " ", " ", " "], regex=True)

@@ -2,7 +2,8 @@ process bcftools_variants {
   tag           "${sample}"
   publishDir    "${params.outdir}", mode: 'copy'
   errorStrategy { task.attempt < 2 ? 'retry' : 'ignore'}
-  container     'staphb/bcftools:1.17'
+  container     'staphb/bcftools:1.18'
+  label         'process_single'
 
   //#UPHLICA maxForks 10
   //#UPHLICA pod annotation: 'scheduler.illumina.com/presetSize', value: 'standard-medium'
@@ -17,6 +18,7 @@ process bcftools_variants {
   tuple val(sample), file(bam), file(reference_genome)
 
   output:
+  tuple val(sample), file(bam), file(reference_genome), file("bcftools_variants/${sample}.vcf"), emit: vcf
   path "bcftools_variants/${sample}.vcf", emit: bcftools_variants_file
   path "logs/${task.process}/${sample}.${workflow.sessionId}.log"
 

@@ -80,7 +80,7 @@ A file summarizing all results is found in `'params.outdir'/cecret_results.csv` 
 Consensus sequences can be found in `'params.outdir'/consensus` and end with `*.consensus.fa`.
 
 ### Getting files from directories
-(can be adjusted with 'params.reads', 'params.single_reads', and 'params.fastas')
+(can be adjusted with 'params.reads', 'params.single_reads', 'params.fastas', and 'params.nanopore')
 
 Paired-end fastq.gz (ending with 'fastq', 'fastq.gz', 'fq', or 'fq.gz') reads as follows or designate directory with 'params.reads' or '--reads'
 ```
@@ -101,6 +101,13 @@ directory
 
 WARNING : single and paired-end reads **cannot** be in the same directory
 
+Nanopore/ONT reads as follows or designate directory with 'params.nanopore' or '--nanopore'
+```
+directory
+└── nanopore
+     └── *fastq.gz
+```
+
 Fasta files (ending with 'fa', 'fasta', or 'fna') as follows or designate directory with 'params.fastas' or '--fastas'
 ```
 directory
@@ -118,11 +125,12 @@ directory
 WARNING : fastas and multifastas **cannot** be in the same directory. If no fasta preprocessing is necessary, put the single fastas in the multifastas directory.
 
 ### Using a sample sheet
-Cecret can also use a sample sheet for input with the sample name and reads separated by commas. The header must be `sample,fastq_1,fastq_1`. The general rule is the identifier for the file(s), the file locations, and the type if not paired-end fastq files.
+Cecret can also use a sample sheet for input with the sample name and reads separated by commas. The header must be `sample,fastq_1,fastq_2`. The general rule is the identifier for the file(s), the file locations, and the type if not paired-end fastq files.
 
 Rows match files with their processing needs.
 - paired-end reads: `sample,read1.fastq.gz,read2.fastq.gz`
-- single-reads reads: `sample,read1.fastq.gz,single`
+- single-reads reads: `sample,sample.fastq.gz,single`
+- nanopore reads : `sample,sample.fastq.gz,nanopore`
 - fasta files: `sample,sample.fasta,fasta`
 - multifasta files: `multifasta,multifasta.fasta,multifasta`
 
@@ -133,6 +141,7 @@ SRR13957125,/home/eriny/sandbox/test_files/cecret/reads/SRR13957125_1.fastq.gz,/
 SRR13957170,/home/eriny/sandbox/test_files/cecret/reads/SRR13957170_1.fastq.gz,/home/eriny/sandbox/test_files/cecret/reads/SRR13957170_2.fastq.gz
 SRR13957177S,/home/eriny/sandbox/test_files/cecret/single_reads/SRR13957177_1.fastq.gz,single
 OQ255990.1,/home/eriny/sandbox/test_files/cecret/fastas/OQ255990.1.fasta,fasta
+SRR22452244,/home/eriny/sandbox/test_files/cecret/nanopore/SRR22452244.fastq.gz,nanopore
 ```
 
 Example usage with sample sheet using docker to manage containers
@@ -145,21 +154,6 @@ nextflow run UPHL-BioNGS/Cecret -profile docker --sample_sheet SampleSheet.csv
 
 ## Determining primer and amplicon bedfiles
 The default primer scheme of the 'Cecret' workflow is the 'V4' primer scheme developed by [artic network for SARS-CoV-2](https://artic.network/ncov-2019). Releases prior to and including '2.2.20211221' used the 'V3' primer scheme as the default. As many public health laboratories are still using 'V3', the 'V3' files are still in this repo, but now the 'V4', 'V4.1' ('V4' with a spike-in of additional primers), and 'V5.3.2' are also included. The original primer and amplicon bedfiles can be found at [artic's github repo](https://github.com/artic-network/artic-ncov2019/tree/master/primer_schemes/nCoV-2019). 
-
-Setting primers sets is with the corresponding profile.
-```
-# using artic V3 primers
-nextflow run UPHL-BioNGS/Cecret -profile singularity,artic_V3
-
-# using artic V4 primers
-nextflow run UPHL-BioNGS/Cecret -profile singularity,artic_V4
-
-# using artic V4.1 primers
-nextflow run UPHL-BioNGS/Cecret -profile singularity,artic_V4_1
-
-# using artic V5.3.2 primers
-nextflow run UPHL-BioNGS/Cecret -profile singularity,artic_V5_3_2
-```
 
 Setting primers with a parameter on the command line (these can also be defined in a config file)
 ```
@@ -175,6 +169,8 @@ nextflow run UPHL-BioNGS/Cecret -profile singularity --primer_set 'ncov_V4.1'
 # using artic V5.3.2 primers
 nextflow run UPHL-BioNGS/Cecret -profile singularity --primer_set 'ncov_V5.3.2'
 ```
+
+Some "Midnight" primers are also included and can be set with `midnight_idt_V1`, `midnight_ont_V1`, `midnight_ont_V2`, `midnight_ont_V3`.
 
 It is still possible to set 'params.primer_bed' and 'params.amplicon_bed' via the command line or in a config file with the path to the corresponding file.
 
@@ -342,10 +338,13 @@ params.kraken2_db = 'kraken2_db'
 
 ## The main components of Cecret are:
 - [aci](https://github.com/erinyoung/ACI) - for depth estimation over amplicons
+- [artic network](https://github.com/artic-network) - for aligning and consensus creation of nanopore reads
+- [bcftools](https://samtools.github.io/bcftools/bcftools.html) - for variants
 - [bwa](http://bio-bwa.sourceforge.net/) - for aligning reads to the reference
 - [fastp](https://github.com/OpenGene/fastp) - for cleaning reads ; optional, faster alternative to seqyclean
 - [fastqc](https://github.com/s-andrews/FastQC) - for QC metrics
 - [freyja](https://github.com/andersen-lab/Freyja) - for multiple SARS-CoV-2 lineage classifications
+- [heatcluster](https://github.com/DrB-S/heatcluster) - for visualizing SNP matrices generated via SNP dists
 - [iqtree2](http://www.iqtree.org/) - for phylogenetic tree generation (optional, relatedness must be set to "true")
 - [ivar](https://andersen-lab.github.io/ivar/html/manualpage.html) - calling variants and creating a consensus fasta; optional primer trimmer
 - [kraken2](https://ccb.jhu.edu/software/kraken2/) - for read classification
@@ -355,6 +354,8 @@ params.kraken2_db = 'kraken2_db'
 - [nextalign](https://github.com/neherlab/nextalign) - for phylogenetic tree generation (optional, relatedness must be set to "true", and msa must be set to "nextalign")
 - [nextclade](https://clades.nextstrain.org/) - for SARS-CoV-2 clade classification
 - [pangolin](https://github.com/cov-lineages/pangolin) - for SARS-CoV-2 lineage classification
+- [pango collapse](https://github.com/MDU-PHL/pango-collapse) - for SARS-CoV-2 lineage tracing
+- [phytreeviz](https://github.com/moshi4/phyTreeViz) - for visualizing phylogenetic trees
 - [samtools](http://www.htslib.org/) - for QC metrics and sorting; optional primer trimmer; optional converting bam to fastq files; optional duplication marking
 - [seqyclean](https://github.com/ibest/seqyclean) - for cleaning reads
 - [snp-dists](https://github.com/tseemann/snp-dists) - for relatedness determination (optional, relatedness must be set to "true")
@@ -376,6 +377,7 @@ params.kraken2 = false                    # used to classify reads and needs a c
 params.aci = true                         # coverage approximation of amplicons
 params.nextclade = true                   # SARS-CoV-2 clade determination
 params.pangolin = true                    # SARS-CoV-2 lineage determination
+params.pango_collapse = true              # SARS-CoV-2 lineage tracing
 params.freyja = true                      # multiple SARS-CoV-2 lineage determination
 params.vadr = false                       # NCBI fasta QC
 params.relatedness = false                # create multiple sequence alignments with input fastq and fasta files
@@ -393,6 +395,10 @@ params.multiqc = true                     # aggregates data into single report
 
 ```
 cecret                                # results from this workflow
+├── aci
+│   ├── amplicon_depth.csv
+│   ├── amplicon_depth_mqc.png
+│   └── amplicon_depth.png
 ├── aligned                           # aligned (with aligner) but untrimmed bam files with indexes
 │   ├── SRR13957125.sorted.bam
 │   ├── SRR13957125.sorted.bam.bai
@@ -482,6 +488,15 @@ cecret                                # results from this workflow
 │   ├── iqtree2.log
 │   ├── iqtree2.mldist
 │   └── iqtree2.treefile
+├── ivar_consensus
+│   ├── SRR13957125.consensus.fa
+│   ├── SRR13957125.consensus.qual.txt
+│   ├── SRR13957125_NTC.consensus.fa
+│   ├── SRR13957125_NTC.consensus.qual.txt
+│   ├── SRR13957170.consensus.fa
+│   ├── SRR13957170.consensus.qual.txt
+│   ├── SRR13957177.consensus.fa
+│   └── SRR13957177.consensus.qual.txt
 ├── ivar_trim                        # bam files after primers have been trimmed off the reads with ivar
 │   ├── SRR13957125_ivar.log
 │   ├── SRR13957125.primertrim.sorted.bam
@@ -554,6 +569,8 @@ cecret                                # results from this workflow
 │   ├── nextclade.insertions.csv
 │   ├── nextclade.json
 │   └── nextclade.tsv
+├── pango_collapse
+│   └── pango_collapse.csv
 ├── pangolin                         # pangolin results
 │   ├── combined.fasta
 │   └── lineage_report.csv
@@ -975,6 +992,7 @@ params.samtools_ampliconstats = false
 params.samtools_plot_ampliconstats = false
 params.aci = false
 params.pangolin = false
+params.pango_collapse = false
 params.freyja = false
 params.nextclade = false
 params.vadr = false

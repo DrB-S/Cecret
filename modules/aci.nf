@@ -1,11 +1,11 @@
 process aci {
-    tag        "Graphing ampicon depths"
-    label      "maxcpus"
+    tag        "Graphing amplicon depths"
+    label      "process_high"
     publishDir "${params.outdir}", mode: 'copy'
     container  'quay.io/erinyoung/aci:0.1.20230815'
+    errorStrategy { task.attempt < 2 ? 'retry' : 'ignore'}
   
     //#UPHLICA maxForks      10
-    //#UPHLICA errorStrategy { task.attempt < 2 ? 'retry' : 'ignore'}
     //#UPHLICA pod annotation: 'scheduler.illumina.com/presetSize', value: 'standard-xlarge'
     //#UPHLICA memory 60.GB
     //#UPHLICA cpus 14
@@ -27,8 +27,6 @@ process aci {
     '''
         mkdir -p logs/!{task.process}
         log=logs/!{task.process}/aci.!{workflow.sessionId}.log
-        echo !{bam}
-        echo !{bed}
 
         # time stamp + capturing tool versions
         date > $log
